@@ -1,96 +1,146 @@
 ﻿use std::io::Write;
 use std::slice::IterMut;
 
-#[repr(C)]
-enum WordTransformType {
+/// Brotli text transformation functions
+pub enum WordTransformType {
+    /// The word is copied to the output buffer as-is
     Identity,
+
+    /// The first pseudo-UTF8 character (first 1-3 bytes) of the word are transformed using `to_uppercase()`
     UppercaseFirst,
+
+    /// All pseudo-UTF8 characters of the word are transformed using `to_uppercase()`
     UppercaseAll,
-    OmitLast(u8 ),
-    OmitFirst(u8 )
+
+    /// Copy the word, except for the last few bytes
+    OmitLast(u8),
+
+    /// Copy the word, except for the first few bytes
+    OmitFirst(u8)
 }
 
-struct Transform {
+/// A word transform definition used to generate variants of a source text in the output stream
+pub struct Transform {
   prefix : &'static [u8],
   transform : WordTransformType,
   suffix : &'static [u8]
 }
 
-fn to_uppercase( word: &mut [u8], first_char_only: bool ) {
+impl Transform {
 
-    let mut ch = word.into_iter();
+    // SAFETY: Instead of 'panic!()', a preferred option might be to return either the bytes copied or an Error
+    /// Utility method to copy an array of bytes. 
+    fn copy( src: &[u8], dst: &mut [u8] )
+    {
+        let mut i = dst.iter_mut();
+        for byte in src {
+            if let Some(d) = i.next() {
+                *d = *byte;
+            }
+            else
+            {
+                panic!();
+            }
+        }
+    }
 
-    loop {
-        match ch.next() {
-            Some(p) => {
-                let c = *p;
-                if c < 192
-                {
-                    if c >= 97 && c <= 122 
+    /// The Brotli format specifies a simplified uppercase function for a pseudo-UTF8 interpretation
+    /// of a byte array.
+    pub fn to_uppercase( word: &mut [u8], first_char_only: bool ) {
+
+        let mut ch = word.into_iter();
+
+        loop {
+            match ch.next() {
+                Some(p) => {
+                    let c = *p;
+                    if c < 192
                     {
-                        *p ^= 32;
+                        if c >= 97 && c <= 122 
+                        {
+                            *p ^= 32;
+                        }
                     }
-                }
-                else if let Some(p1) = ch.next() 
-                {
-                    if c < 224
+                    else if let Some(p1) = ch.next() 
                     {
-                        *p1 ^= 32;
-                    }
-                    else if let Some(p2) = ch.next()
-                    {    
-                        *p2 ^= 5;
+                        if c < 224
+                        {
+                            *p1 ^= 32;
+                        }
+                        else if let Some(p2) = ch.next()
+                        {    
+                            *p2 ^= 5;
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
                     else
                     {
                         break;
                     }
-                }
-                else
-                {
-                    break;
-                }
-            },
-            None => break
+                },
+                None => break
+            }
+
+            if first_char_only { break; }
         }
-
-        if first_char_only { break; }
     }
-}
 
-impl Transform {
+    pub fn transform( &self, src: &[u8], dst: &mut [u8] ) -> usize {
+                             
+        Transform::copy( self.prefix, dst );
+        let mut offs = self.prefix.len();
 
-    pub fn TransformDictionaryWord<W:Write> ( &self, word: &[u8], mut dst: W ) -> usize {
-       
-        dst.write_all( self.prefix ).unwrap();
-
-        let mut bytes: usize = word.len();
         match self.transform {
-            WordTransformType::Identity => dst.write_all( self.suffix ).unwrap(); 
+            WordTransformType::Identity =>  Transform::copy( src, &mut dst[offs..] ),
             WordTransformType::UppercaseFirst => {
-                 dst.write_all( self.suffix ).unwrap(); 
-                /* TODO to_uppercase( dst, true ); */ 
+                Transform::copy( src, &mut dst[offs..] );
+                Transform::to_uppercase( &mut dst[offs..offs+src.len()], true );
+                offs += src.len();
             }
             WordTransformType::UppercaseAll => { 
-                dst.write_all( self.suffix ).unwrap();
-                /* TODO to_uppercase( dst, false ); */ 
+                Transform::copy( src, &mut dst[offs..] );
+                Transform::to_uppercase( &mut dst[offs..offs+src.len()], false );
+                offs += src.len();
             }
-            WordTransformType::OmitFirst( n ) => { 
-                dst.write_all( &word[(n as usize) .. word.len()] ).unwrap(); 
-                bytes -= n as usize; 
+            WordTransformType::OmitFirst( n ) => {
+                Transform::copy( &src[(n as usize)..], &mut dst[offs..] );
+                offs += src.len() - (n as usize);
             }
             WordTransformType::OmitLast( n ) => { 
-                dst.write_all( &word[0 .. word.len()-( n as usize)] ).unwrap(); 
-                bytes -= n as usize; 
+                 Transform::copy( &src[..src.len()-(n as usize)], &mut dst[offs..] );
+                offs += src.len() - (n as usize);
             }
         }
          
-        dst.write_all( self.suffix ).unwrap();
-
-        return self.prefix.len() + bytes + self.suffix.len();
+        Transform::copy( self.suffix, &mut dst[offs..] );        
+        return offs + self.suffix.len();
     }
 }
 
+#[test()]
+fn test_transform()
+{
+    let word = b"hello";
+    let mut dst = &mut [0u8;20];
+
+    let bytes = TRANSFORMS[4].transform( word, dst );
+    assert_eq!( &dst[..bytes], b"Hello " );
+    assert_eq!( bytes, 6 );
+
+    let bytes = TRANSFORMS[85].transform( word, dst );
+    assert_eq!( &dst[..bytes], b" HELLO" );
+    assert_eq!( bytes, 6 );
+
+    let bytes = TRANSFORMS[11].transform( word, dst );
+    assert_eq!( &dst[..bytes], b"llo" );
+    assert_eq!( bytes, 3 );
+
+}
+
+/// The Brotli standard defines these 121 standard transforms to use during decompression.
 const TRANSFORMS : [Transform;121] = [
 	Transform { prefix: b"",		transform: WordTransformType::Identity,			suffix: b""  },
 	Transform { prefix: b"",		transform: WordTransformType::Identity,		    suffix: b" "  },

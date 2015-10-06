@@ -10,6 +10,8 @@ const IBUF_MASK: usize =  (READ_SIZE - 1);
 // TODO: This reader might have cleaner code if the input can be read from EITHER
 // the bit buffer OR the byte buffer. That is, the bit offset can never be more than
 // 7 bits.
+// Also, I'm not a fan of the way implicit zeroes is implemented. Might be more elegant
+// to use one of the Read implementations that chains the base reader with 0 repeated.
 
 /// Data source for the Brotli decoder. The default implementation wraps `std::io::Read`,
 /// or a custom implementation can be provided.

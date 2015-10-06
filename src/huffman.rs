@@ -1,11 +1,10 @@
 
 const HUFFMAN_MAX_CODE_LENGTH: u8 = 15;
 
-/* For current format this constant equals to kNumInsertAndCopyCodes */
+/// For current format this constant equals to kNumInsertAndCopyCodes
 const HUFFMAN_MAX_CODE_LENGTHS_SIZE: u32 = 704;
 
-/* Maximum possible Huffman table size for an alphabet size of 704, max code
- * length 15 and root table bits 8. */
+/// Maximum possible Huffman table size for an alphabet size of 704, max code length 15 and root table bits 8.
 const HUFFMAN_MAX_TABLE_SIZE: usize = 1080;
 
 const HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH: u8 = 5;

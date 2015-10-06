@@ -12,20 +12,13 @@
 //! See the License for the specific language governing permissions and
 //! limitations under the License.
 
-#[cfg(feature = "decoder")]
-mod context;
-#[cfg(feature = "decoder")]
-mod transforms;
-#[cfg(feature = "decoder")]
-pub mod bitreader;
-#[cfg(feature = "decoder")]
-mod decoder;
-#[cfg(feature = "decoder")]
-mod dictionary;
-#[cfg(feature = "decoder")]
-mod prefix;
-#[cfg(feature = "decoder")]
+mod context;            // complete
+pub mod transforms;     // complete & tested
+pub mod bitreader;      // complete
+mod dictionary;         // complete
+mod prefix;             // complete
 mod huffman;
+pub mod decoder;
          
 #[test]
 fn it_works() {
