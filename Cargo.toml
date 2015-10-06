@@ -1,0 +1,15 @@
+[package]
+name = "brotli"
+description="A native Rust implementation of Google's Brotli compression format."
+keywords = ["compress", "decompress","compression"]
+license = "Apache-2.0"
+version = "0.1.0"
+authors = ["Peter Bertok <peter@bertok.com>"," Google Inc."]
+
+[features]
+
+default = ["decoder"]
+
+encoder = []
+
+decoder = []
