@@ -31,7 +31,7 @@
 /// Implementation based on: https://github.com/madler/brotli/blob/master/yeast.c by Mark Adler
 fn context_id( p1: u8, p2: u8, mode: u8 ) -> u8
 {
-    const lut0: [u8;256] = [
+    const LUT0: [u8;256] = [
         0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  4,  0,  0,  4,  0,  0, 0,  0,
         0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 8, 12, 16, 12,
         12, 20, 12, 16, 24, 28, 12, 12, 32, 12, 36, 12, 44, 44, 44, 44, 44, 44,
@@ -47,7 +47,7 @@ fn context_id( p1: u8, p2: u8, mode: u8 ) -> u8
         3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3 
     ];
 
-    const lut1: [u8;256] = [
+    const LUT1: [u8;256] = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,
@@ -61,7 +61,7 @@ fn context_id( p1: u8, p2: u8, mode: u8 ) -> u8
         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 
     ];
 
-    const lut2: [u8;256] = [
+    const LUT2: [u8;256] = [
         0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2,
         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
         2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3,
@@ -75,11 +75,11 @@ fn context_id( p1: u8, p2: u8, mode: u8 ) -> u8
         6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7
     ];
 
-    match ( mode ) {
+    match mode {
         0 => p1 & 0x3f, // LSB6
         1 => p1 >> 2,   // MSB6
-        2 => lut0[p1 as usize] | lut1[p2 as usize], // UTF8
-        3 => (lut2[p1 as usize] << 3) | lut2[p2 as usize], // Signed integers
+        2 => LUT0[p1 as usize] | LUT1[p2 as usize], // UTF8
+        3 => (LUT2[p1 as usize] << 3) | LUT2[p2 as usize], // Signed integers
         _ => panic!() // should never occur, 'mode' is a 2-bit integer
     }
 }
