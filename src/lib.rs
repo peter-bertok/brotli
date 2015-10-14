@@ -19,7 +19,8 @@ mod dictionary;         // complete
 mod prefix;             // complete
 mod huffman;
 pub mod decoder;
-         
+
+        
 #[test]
 fn it_works() {
 }
