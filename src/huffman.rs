@@ -92,7 +92,7 @@ impl Table {
         // TODO: unstable feature "step_by()" can make this more elegant.
         let mut i = offs + repeat;
         let t = self.codes[offs];
-        while( i < self.codes.len() )
+        while i < self.codes.len()
         {
             self.codes[i] = t;
             i += repeat;
