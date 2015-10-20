@@ -125,12 +125,9 @@ impl<R: Read + Sized> StreamBitReader<R> {
 
     fn read_input( &mut self, finish: bool ) -> Result<()>
     {
-        if self.end_of_stream 
-        {
+        if self.end_of_stream {
             Err( BrotliError::InsufficientData )
-        }
-        else
-        {
+        } else {
             // Shift buffer contents to the front
             if self.buf_position != 0 
             {
@@ -161,7 +158,7 @@ impl<R: Read + Sized> StreamBitReader<R> {
                 }
                 self.available_bytes += IMPLICIT_ZEROES;
             }
-            return Ok( () );
+            Ok(())
         }
     }
 
@@ -202,7 +199,7 @@ impl<R: Read + Sized> BitReader for StreamBitReader<R> {
             self.buf_position += 1;
             self.available_bytes -= 1;
 
-            Ok( () )
+            Ok(())
         }
     }
 
@@ -211,20 +208,12 @@ impl<R: Read + Sized> BitReader for StreamBitReader<R> {
     {
         // TODO: add conditional compilation to support 32-bit
         let total = self.available_bytes + 64 - ( self.bit_position >> 3 ) as usize;
-        if !self.end_of_stream 
-        { 
+        if !self.end_of_stream { 
             total 
-        }
-        else
-        {
-            if total <= IMPLICIT_ZEROES
-            {
-                0
-            }
-            else
-            {
-                total - IMPLICIT_ZEROES
-            }
+        } else if total <= IMPLICIT_ZEROES {
+            0
+        } else {
+            total - IMPLICIT_ZEROES
         }
     }
 
@@ -301,47 +290,39 @@ impl<R: Read + Sized> BitReader for StreamBitReader<R> {
     }
 
     #[inline(always)]
-    fn jump_to_byte_boundary(&mut self) -> bool
-    {
+    fn jump_to_byte_boundary(&mut self) -> bool {
         let pad_bits_count = ( 64 - self.bit_position ) & 0x7;
         if pad_bits_count != 0 {
-            return self.take_bits( pad_bits_count ) == 0
-        }
-        else
-        {
+            self.take_bits( pad_bits_count ) == 0
+        } else {
             true
-        }     
+        }
     }
 
     #[inline(always)]
-    fn peek_byte( &self, offset: usize ) -> Option<u8>
-    {
-        if self.bit_position & 7 != 0  
-        {
+    fn peek_byte( &self, offset: usize ) -> Option<u8> {
+        if self.bit_position & 7 != 0 {
             return Option::None
         }
 
         let bytes_left = ( 8 - (self.bit_position >> 3)) as usize;
 
-        if offset < bytes_left
-        {
+        if offset < bytes_left {
             return Option::Some( ((self.prefetch_bits >> (self.bit_position as usize + (offset << 3))) & 0xFF ) as u8 );
         }
         
         let offset_sub = offset - bytes_left;
-
-        if offset_sub < self.available_bytes
-        {
-            return Option::Some( self.buf[self.buf_position+offset_sub] );
+        if offset_sub < self.available_bytes {
+            Option::Some( self.buf[self.buf_position+offset_sub] )
+        } else {
+            Option::None
         }
-        return Option::None
     }
 
     fn copy_bytes( &mut self, dst: &mut [u8] ) 
     {
         let mut dst_offs = 0;
-        while self.bit_position + 8 <= 64 && dst.len() > dst_offs
-        {
+        while self.bit_position + 8 <= 64 && dst.len() > dst_offs {
             dst[dst_offs] = ( self.prefetch_bits >> self.bit_position ) as u8;
             self.bit_position += 8;
             dst_offs += 1;
@@ -355,9 +336,8 @@ impl<R: Read + Sized> BitReader for StreamBitReader<R> {
     }
 
     #[inline(always)]
-    fn is_reader_okay( &self) -> bool 
-    {
+    fn is_reader_okay( &self) -> bool {
         let remaining_bytes = self.available_bytes + 8 - ((self.bit_position >> 3) as usize);
-        return !self.end_of_stream || (remaining_bytes >= IMPLICIT_ZEROES);
+        !self.end_of_stream || (remaining_bytes >= IMPLICIT_ZEROES)
     }
 }

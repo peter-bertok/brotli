@@ -66,15 +66,13 @@ impl Table {
     /// Decodes the next Huffman code from a BitReader. Reads 0 - 15 bits.
     #[inline(always)]
     pub fn read_huffman_symbol<BR:BitReader>( &self, br: &mut BR ) -> u16 {
-
         let code = self[br.get_bits_unmasked()];
         br.drop_bits( code.bits as u32 );
         
         code.value
     }
 
-    fn get_next_key( key:u32 , len: u32 ) -> u32
-    {
+    fn get_next_key( key:u32 , len: u32 ) -> u32 {
         let mut step = 1 << (len - 1);
         while ( key & step ) != 0 {
             step >>= 1;
@@ -87,13 +85,11 @@ impl Table {
     /// repeated every `repeat` steps. Used to construct tables that
     /// can consume more than 1 bit at a time.
     #[inline(always)]
-    fn replicate( &mut self, offs: usize, repeat: usize )
-    {
+    fn replicate( &mut self, offs: usize, repeat: usize ) {
         // TODO: unstable feature "step_by()" can make this more elegant.
         let mut i = offs + repeat;
         let t = self.codes[offs];
-        while i < self.codes.len()
-        {
+        while i < self.codes.len() {
             self.codes[i] = t;
             i += repeat;
         }
