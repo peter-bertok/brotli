@@ -20,7 +20,49 @@ mod prefix;             // complete
 mod huffman;
 pub mod decoder;
 
-        
-#[test]
-fn it_works() {
+use std::error::Error;
+use std::io::Error as IoError;
+use std::fmt::{ Formatter, Display };
+use std::fmt::Error as FmtError;
+use std::result;
+
+#[derive(Debug)]
+pub enum BrotliError {
+    /// Returned if the input is not a valid Brotli data stream.
+    InvalidEncoding,
+
+    /// Returned if the stream appears to be truncated.
+    InsufficientData,
+
+    /// Input/Output error during read
+    Io( IoError )
+}
+
+pub type Result<T> = result::Result<T, BrotliError>;
+
+impl Error for BrotliError {
+    /// A short description of the error.
+    fn description(&self) -> &str {
+        unimplemented!();
+    }
+
+    /// The lower level cause of this error, if any.
+    fn cause<'a>(&'a self) -> Option<&'a Error> { 
+        match self {
+            &BrotliError::Io( ref e ) => Some( e ),
+            _ => None
+        } 
+    }
+}
+
+impl Display for BrotliError {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result { 
+        unimplemented!();
+    }
+}
+
+impl From<IoError> for BrotliError {
+    fn from(err: IoError) -> BrotliError {
+        BrotliError::Io( err )
+    }
 }

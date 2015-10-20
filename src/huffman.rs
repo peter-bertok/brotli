@@ -1,5 +1,7 @@
 use bitreader::BitReader;
 use std::ops::Index;
+use BrotliError;
+use Result;
 
 /// Maximum number of bits used for a code
 const HUFFMAN_MAX_CODE_LENGTH: usize = 15;
@@ -25,6 +27,8 @@ pub struct Code {
 
 pub struct Table {
     codes: [Code;HUFFMAN_MAX_TABLE_SIZE],
+
+    /// The `codes` field contains repeats, so the real alphabet size needs to be seperately tracked.
     alphabet_size: u16
 }
 
@@ -69,30 +73,74 @@ impl Table {
         code.value
     }
 
-    /// Because of the way the Brotli tables are constructed, they can be decoded
-    /// from an array of code-lengths (in bits) only.
-    pub fn build_from_code_lengths( &mut self, lengths: &[u8] )
+    fn get_next_key( key:u32 , len: u32 ) -> u32
     {
-        assert!( lengths.len() < HUFFMAN_MAX_CODE_LENGTHS_SIZE );
+        let mut step = 1 << (len - 1);
+        while ( key & step ) != 0 {
+            step >>= 1;
+        }
+    
+        (key & (step - 1)) + step
+    }
+
+    /// Copy a value into the destination slice starting at an offset,
+    /// repeated every `repeat` steps. Used to construct tables that
+    /// can consume more than 1 bit at a time.
+    #[inline(always)]
+    fn replicate( &mut self, offs: usize, repeat: usize )
+    {
+        // TODO: unstable feature "step_by()" can make this more elegant.
+        let mut i = offs + repeat;
+        let t = self.codes[offs];
+        while( i < self.codes.len() )
+        {
+            self.codes[i] = t;
+            i += repeat;
+        }
+    }   
+
+    /// Because of the way the Brotli tables are encoded, they can be decoded
+    /// from an array of code-lengths only.
+    pub fn build_from_code_lengths( &mut self, lengths: &[u8] ) -> Result<()> {
+
+        // TODO: Check if this is > or >=
+        if lengths.len() > HUFFMAN_MAX_CODE_LENGTHS_SIZE {
+            return Err( BrotliError::InvalidEncoding)
+        }
 
         // Compute histogram of bit-lengths
         let mut code_length_histogram = [0;HUFFMAN_MAX_CODE_LENGTH+1];
         for bits in lengths {
-            code_length_histogram[*bits as usize] += 1; // TODO: implicit assert!() here for `bits < MAXBITS`
+            if *bits > HUFFMAN_MAX_CODE_LENGTH as u8 {
+                return Err( BrotliError::InvalidEncoding )
+            }
+
+            code_length_histogram[*bits as usize] += 1; 
         }
 
-        // Zero-length codes should never occur, as this method is not supposed
-        // to be called in such cases
-        assert_eq!( code_length_histogram[0], 0 );
+        // Find the numerical value of the smallest code for each code length
+        let mut next_code = [0u16;HUFFMAN_MAX_CODE_LENGTH+1];
+        let mut code = 0;
+        for bits in 1 .. HUFFMAN_MAX_CODE_LENGTH+1 {
+            code = (code + code_length_histogram[bits-1]) << 1;
+            next_code[bits as usize] = code;
+        }
+
+        for symbol_value in 0..lengths.len() {
+            let bits = lengths[symbol_value] as usize;
+            let code = next_code[bits] as usize;
+            next_code[bits] += 1;
+
+            // @@@ TODO: This is logically correct, but "not it".
+            // Brotli uses a fancy 8-bit prefix decode 
+            self.codes[code].bits = bits as u8;
+            self.codes[code].value = symbol_value as u16;
+            
+            // Repeat values to allow lookup
+            self.replicate( code, 1 << bits );
+        }
+
+        Ok( () )
     }
 }
 
-fn get_next_key( key:u32 , len: u32 ) -> u32
-{
-    let mut step = 1 << (len - 1);
-    while ( key & step ) != 0 {
-        step >>= 1;
-    }
-    
-    (key & (step - 1)) + step
-}

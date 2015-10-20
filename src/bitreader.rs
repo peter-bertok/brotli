@@ -1,4 +1,6 @@
 ﻿use std::io::{ Read, Write, ErrorKind };
+use Result;
+use BrotliError;
 
 // TODO: Move into BitReader trait (associated constants)
 const MAX_NUM_BIT_READ : u32 = 25;
@@ -20,7 +22,7 @@ pub trait BitReader {
     /// Ensures that accumulator is not empty. May consume one byte of input.
     /// Returns `false` if data is required but there is no input available.
     #[must_use()]
-    fn warmup( &mut self ) -> bool;
+    fn warmup( &mut self ) -> Result<()>;
 
     /// returns the number of unread bytes remaining in the buffer.
     #[must_use()]
@@ -121,11 +123,11 @@ impl<R: Read + Sized> StreamBitReader<R> {
         }
     }
 
-    fn read_input( &mut self, finish: bool ) -> bool
+    fn read_input( &mut self, finish: bool ) -> Result<()>
     {
         if self.end_of_stream 
         {
-            false
+            Err( BrotliError::InsufficientData )
         }
         else
         {
@@ -140,34 +142,26 @@ impl<R: Read + Sized> StreamBitReader<R> {
                 self.buf_position = 0;
             }
 
-            match self.reader.read( & mut self.buf[0 .. READ_SIZE - self.available_bytes] )
+            let bytes_read = try!( self.reader.read( & mut self.buf[0 .. READ_SIZE - self.available_bytes] ));
+            self.available_bytes += bytes_read; 
+            if bytes_read < READ_SIZE
             {
-                Ok( bytes_read ) => { 
-                    self.available_bytes += bytes_read; 
-                    if bytes_read < READ_SIZE
-                    {
-                        if !finish
-                        {
-                            return false;
-                        }
+                if !finish
+                {
+                    return Err( BrotliError::InsufficientData );
+                }
 
-                        self.end_of_stream = true;
-                        let start = self.buf_position+self.available_bytes;
+                self.end_of_stream = true;
+                let start = self.buf_position+self.available_bytes;
 
-                        // TODO: Use memset or zeromemory, but this is probably optimised away anyway.
-                        for byte in &mut self.buf[start .. start + IMPLICIT_ZEROES]
-                        {
-                            *byte = 0;
-                        }
-                        self.available_bytes += IMPLICIT_ZEROES;
-                    }
-                    return true;
-                },
-                Err(ref e) if e.kind() == ErrorKind::Interrupted => {
-                    return true;
-                },
-                _ => { return false; }
+                // TODO: Use memset or zeromemory, but this is probably optimised away anyway.
+                for byte in &mut self.buf[start .. start + IMPLICIT_ZEROES]
+                {
+                    *byte = 0;
+                }
+                self.available_bytes += IMPLICIT_ZEROES;
             }
+            return Ok( () );
         }
     }
 
@@ -193,12 +187,12 @@ impl<R: Read + Sized> StreamBitReader<R> {
 
 impl<R: Read + Sized> BitReader for StreamBitReader<R> {
     
-    fn warmup( &mut self ) -> bool
+    fn warmup( &mut self ) -> Result<()>
     {
         // SAFETY: additional bit_position check, more paranoid comparisons
         if self.bit_position >= 64 && self.available_bytes <= 0 || self.bit_position < 8
         {
-            false
+            Err( BrotliError::InsufficientData )
         }
         else
         {
@@ -208,7 +202,7 @@ impl<R: Read + Sized> BitReader for StreamBitReader<R> {
             self.buf_position += 1;
             self.available_bytes -= 1;
 
-            true
+            Ok( () )
         }
     }
 

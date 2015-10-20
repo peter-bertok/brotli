@@ -16,6 +16,15 @@ impl<BR: BitReader> Read for Decoder<BR> {
 
 impl <BR: BitReader> Decoder<BR> {
 
+    pub fn new( source: BR ) -> Decoder<BR> {
+        unimplemented!();
+    }
+
+    /* @@@ TODO
+    pub fn new_with_custom_dict<'a>( source: BR, dict: &'a [u8] ) -> Decoder<'a,BR> {
+        unimplemented!();
+    } */
+
     
     fn decode_window_bits( br: &mut BR ) -> u32 
     {
