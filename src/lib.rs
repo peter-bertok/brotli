@@ -23,7 +23,6 @@ pub mod decoder;
 use std::error::Error;
 use std::io::Error as IoError;
 use std::fmt::{ Formatter, Display };
-use std::fmt::Error as FmtError;
 use std::result;
 
 #[derive(Debug)]
@@ -47,16 +46,13 @@ impl Error for BrotliError {
     }
 
     /// The lower level cause of this error, if any.
-    fn cause<'a>(&'a self) -> Option<&'a Error> { 
-        match self {
-            &BrotliError::Io( ref e ) => Some( e ),
-            _ => None
-        } 
+    fn cause(&self) -> Option<&Error> { 
+        if let BrotliError::Io( ref e ) = *self { Some(e) } else { None }
     }
 }
 
 impl Display for BrotliError {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result { 
+    fn fmt(&self, _f: &mut Formatter) -> std::fmt::Result { 
         unimplemented!();
     }
 }

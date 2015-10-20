@@ -116,7 +116,7 @@ impl Transform {
         }
          
         Transform::copy( self.suffix, &mut dst[offs..] );        
-        return offs + self.suffix.len();
+        offs + self.suffix.len()
     }
 }
 
